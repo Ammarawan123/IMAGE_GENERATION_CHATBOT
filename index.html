@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Image Chatbot</title>
+</head>
+<body>
+    <h2>Chatbot</h2>
+    <input type="text" id="message" placeholder="Enter prompt...">
+    <button onclick="sendMessage()">Send</button>
+    <div id="response"></div>
+
+    <script>
+        function sendMessage() {
+            let message = document.getElementById("message").value;
+            fetch("/chat", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ message })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.response) {
+                    document.getElementById("response").innerHTML = `<img src="${data.response}" width="300">`;
+                } else {
+                    document.getElementById("response").innerText = "Error generating image.";
+                }
+            });
+        }
+    </script>
+</body>
+</html>
