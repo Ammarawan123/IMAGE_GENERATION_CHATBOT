@@ -3,31 +3,259 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AI Image Chatbot</title>
+    <title>AI Image Studio</title>
+    <style>
+        :root {
+            --bg: #07111f;
+            --panel: rgba(255, 255, 255, 0.1);
+            --panel-strong: rgba(255, 255, 255, 0.16);
+            --text: #f5f7ff;
+            --muted: #b7c0d8;
+            --accent: #7c8cff;
+            --accent-2: #4fd1c5;
+            --danger: #ff6b6b;
+        }
+
+        * { box-sizing: border-box; }
+
+        body {
+            margin: 0;
+            font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+            color: var(--text);
+            min-height: 100vh;
+            display: grid;
+            place-items: center;
+            padding: 24px;
+            background: linear-gradient(135deg, var(--bg), #13263a 45%, #203958);
+            overflow-x: hidden;
+        }
+
+        body::before {
+            content: "";
+            position: fixed;
+            inset: -20%;
+            background: radial-gradient(circle, rgba(124, 140, 255, 0.28), transparent 45%);
+            filter: blur(30px);
+            pointer-events: none;
+        }
+
+        .card {
+            width: min(900px, 100%);
+            background: var(--panel);
+            backdrop-filter: blur(18px);
+            border: 1px solid rgba(255, 255, 255, 0.16);
+            border-radius: 24px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.32);
+            padding: 28px;
+        }
+
+        .hero {
+            display: flex;
+            justify-content: space-between;
+            gap: 20px;
+            align-items: center;
+            margin-bottom: 22px;
+        }
+
+        .hero h1 {
+            margin: 0 0 8px;
+            font-size: 2rem;
+        }
+
+        .hero p {
+            margin: 0;
+            color: var(--muted);
+            line-height: 1.5;
+        }
+
+        .pill {
+            padding: 10px 14px;
+            background: linear-gradient(135deg, var(--accent), var(--accent-2));
+            border-radius: 999px;
+            font-weight: 600;
+            white-space: nowrap;
+        }
+
+        .input-group {
+            display: flex;
+            gap: 12px;
+            margin-bottom: 14px;
+        }
+
+        input[type="text"] {
+            flex: 1;
+            padding: 14px 16px;
+            border-radius: 14px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            background: rgba(255, 255, 255, 0.12);
+            color: var(--text);
+            font-size: 1rem;
+            outline: none;
+        }
+
+        input[type="text"]::placeholder { color: #cbd5e1; }
+
+        button {
+            border: none;
+            padding: 14px 18px;
+            border-radius: 14px;
+            background: linear-gradient(135deg, var(--accent), #8a7cff);
+            color: white;
+            font-weight: 700;
+            cursor: pointer;
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+            box-shadow: 0 10px 20px rgba(124, 140, 255, 0.25);
+        }
+
+        button:hover { transform: translateY(-1px); }
+
+        .status {
+            margin-bottom: 16px;
+            min-height: 24px;
+            color: var(--muted);
+            font-size: 0.95rem;
+        }
+
+        .status.error { color: var(--danger); }
+
+        .result {
+            min-height: 320px;
+            display: grid;
+            place-items: center;
+            border-radius: 20px;
+            background: var(--panel-strong);
+            border: 1px dashed rgba(255, 255, 255, 0.2);
+            padding: 18px;
+            overflow: hidden;
+        }
+
+        .result img {
+            max-width: 100%;
+            max-height: 420px;
+            border-radius: 16px;
+            object-fit: contain;
+            box-shadow: 0 12px 35px rgba(0, 0, 0, 0.25);
+        }
+
+        .empty-state {
+            text-align: center;
+            color: var(--muted);
+            padding: 20px;
+        }
+
+        .loader {
+            width: 48px;
+            height: 48px;
+            border: 4px solid rgba(255,255,255,0.25);
+            border-top-color: white;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+            display: none;
+        }
+
+        .loader.show { display: inline-block; }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        @media (max-width: 680px) {
+            .card { padding: 20px; }
+            .hero { flex-direction: column; align-items: flex-start; }
+            .input-group { flex-direction: column; }
+            button { width: 100%; }
+        }
+    </style>
 </head>
 <body>
-    <h2>Chatbot</h2>
-    <input type="text" id="message" placeholder="Enter prompt...">
-    <button onclick="sendMessage()">Send</button>
-    <div id="response"></div>
+    <div class="card">
+        <div class="hero">
+            <div>
+                <h1>AI Image Studio</h1>
+                <p>Describe your vision and let the generator bring it to life instantly.</p>
+            </div>
+            <div class="pill">✨ Creative AI</div>
+        </div>
+
+        <div class="input-group">
+            <input type="text" id="message" placeholder="Describe the image you want to create...">
+            <button onclick="sendMessage()">Generate</button>
+        </div>
+
+        <div id="status" class="status">Type a prompt and press generate to start.</div>
+        <div id="result" class="result">
+            <div class="empty-state">Your generated image will appear here.</div>
+        </div>
+    </div>
 
     <script>
+        const input = document.getElementById("message");
+        const statusBox = document.getElementById("status");
+        const resultBox = document.getElementById("result");
+        const loader = document.createElement("div");
+        loader.className = "loader";
+        resultBox.appendChild(loader);
+
+        function setLoading(isLoading) {
+            if (isLoading) {
+                resultBox.querySelector(".empty-state")?.remove();
+                loader.classList.add("show");
+            } else {
+                loader.classList.remove("show");
+            }
+        }
+
+        function showStatus(text, isError = false) {
+            statusBox.textContent = text;
+            statusBox.className = `status${isError ? " error" : ""}`;
+        }
+
         function sendMessage() {
-            let message = document.getElementById("message").value;
+            const message = input.value.trim();
+
+            if (!message) {
+                showStatus("Please enter a prompt first.", true);
+                return;
+            }
+
+            showStatus("Generating your image...", false);
+            setLoading(true);
+            resultBox.innerHTML = "";
+            resultBox.appendChild(loader);
+
             fetch("/chat", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ message })
             })
-            .then(response => response.json())
-            .then(data => {
-                if (data.response) {
-                    document.getElementById("response").innerHTML = `<img src="${data.response}" width="300">`;
-                } else {
-                    document.getElementById("response").innerText = "Error generating image.";
+            .then(async response => {
+                const data = await response.json().catch(() => ({}));
+                if (!response.ok) {
+                    throw new Error(data.error || "Failed to generate image.");
                 }
-            });
+
+                const responseText = data.response || data.image || data.url || "";
+                if (responseText && responseText.includes("http")) {
+                    resultBox.innerHTML = `<img src="${responseText}" alt="Generated AI image">`;
+                    showStatus("Image generated successfully ✨", false);
+                } else {
+                    resultBox.innerHTML = '<div class="empty-state">The server did not return an image.</div>';
+                    showStatus("No image was returned by the server.", true);
+                }
+            })
+            .catch(error => {
+                resultBox.innerHTML = '<div class="empty-state">Something went wrong. Please try again.</div>';
+                showStatus(error.message || "Error generating image.", true);
+            })
+            .finally(() => setLoading(false));
         }
+
+        input.addEventListener("keydown", event => {
+            if (event.key === "Enter") {
+                event.preventDefault();
+                sendMessage();
+            }
+        });
     </script>
 </body>
 </html>
