@@ -1,4 +1,4 @@
-# AI Image Generation Chatbot
+# AI Image Generation Chatbotssss
 
 A simple web app that lets users enter a text prompt and generate an AI image using a Flask backend and a polished frontend.
 
